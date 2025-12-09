@@ -10,16 +10,16 @@ pagination_prev: null
 
 - **入门指南**
   - [产品验收](./getting-started-guide/product-acceptance.md)
+  - [开发板介绍](./getting-started-guide/dnt5m_introduction.md)
   - [配套资料下载](./getting-started-guide/download.md)
-  - [T5开发板介绍](./getting-started-guide/dnt5m_introduction.md)
-  - [常见问题汇总](./getting-started-guide/FAQ.md)
+  - [常见问题汇总(FAQ)](./getting-started-guide/FAQ.md)
 - **开发环境搭建**
-  - [TuyaOpen简介](./set-up-development-environment/TuyaOpen.md)
+  - [TuyaOpen介绍](./set-up-development-environment/TuyaOpen.md)
   - [TuyaOpen环境搭建](./set-up-development-environment/tuya-open-install.md)
   - [项目编译下载](./set-up-development-environment/project-compilation.md)
   - [新建Board](./set-up-development-environment/new-board.md)
-  - [tos.py命令使用](./set-up-development-environment/tos-use.md)
-  - [VSCode环境部署与新建工程](./set-up-development-environment/VSCode-install.md)
+  - [tos工具使用](./set-up-development-environment/tos-use.md)
+  - [必要软件安装](./set-up-development-environment/VSCode-install.md)
   - [CH343P驱动安装](./set-up-development-environment/ch343-driver-install.md)
   - [代码放置](./set-up-development-environment/Code_Place.md)
 - **T5开发板基础实验**
