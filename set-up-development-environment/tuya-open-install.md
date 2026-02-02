@@ -65,7 +65,7 @@ TuyaOpen 是一个面向 AIoT 行业的开源、开放的开发框架，基于�
 
 ![git-clone-tuyaopen](.\img\git-clone-tuyaopen.png)
 
-打开Windows PowerShell终端，然后进入TuyaOpen源码库，最后输入`.\export.ps1`命令执行安装操作。
+打开Windows PowerShell终端，然后进入TuyaOpen源码库，最后输入`.\export.ps1`命令或者`.\export.bat`执行安装操作。
 
 ![powershell-install-tuyaopen](.\img\powershell-install.png)
 
@@ -120,9 +120,3 @@ sudo apt-get install python3-venv
 > 重新打开TuyaOpen
 
 必须在终端输入`.\export.ps1`命令，进入tos模式，方能使用tos.py命令。
-
-## PS
-
-在下载并激活TuyaOpen的过程中，由于网络问题，大家可能会出现各种各样的问题，所以我们也把一个安装好对应工具的tuyaOpen框架代码打包了，具体路径在`资料盘\6,软件资料\TuyaOpen_V2.0.rar`，解压使用即可。
-
-进入到TuyaOpen之后，也是执行`.\export.ps1`命令，然后就可以使用tos.py命令去执行操作了。
