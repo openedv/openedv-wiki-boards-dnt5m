@@ -3,7 +3,7 @@ title: '代码放置'
 sidebar_position: 7
 ---
 
-# VSCode 软件安装
+# 代码放置
 
 ## 概述
 

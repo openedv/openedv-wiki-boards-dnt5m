@@ -753,7 +753,8 @@ TDL_DISP_FRAME_BUFF_T *tdl_disp_create_frame_buff(DISP_FB_RAM_TP_E type, uint32_
 
 ### 原理图
 
-正点原子T5 AI开发板与2.4寸SPILCD屏幕使用杜邦线进行连接。
+正点原子T5 AI开发板与2.4寸SPILCD屏幕使用杜邦线进行连接。连接图如下所示。
+![](./img/SPILCD_PICTURE.png)
 
 ## 程序设计
 

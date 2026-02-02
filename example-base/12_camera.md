@@ -80,12 +80,12 @@ typedef enum {
 typedef OPERATE_RET (*TDL_CAMERA_GET_FRAME_CB)(TDL_CAMERA_HANDLE_T hdl,  TDL_CAMERA_FRAME_T *frame);
 
 typedef struct {
-    uint16_t                  fps;					/* 输出帧率 */
-    uint16_t                  width;				/* 输出宽度 */
-    uint16_t                  height;				/* 输出高度 */
-    TDL_CAMERA_FMT_E          out_fmt;				/* 输出格式 */
-    TDL_CAMERA_GET_FRAME_CB   get_frame_cb;			/* 回调解码函数 */
-    TDL_CAMERA_GET_FRAME_CB   get_encoded_frame_cb;	/* 图像编码回调函数 */
+    uint16_t                  fps;                  /* 输出帧率 */
+    uint16_t                  width;                /* 输出宽度 */
+    uint16_t                  height;               /* 输出高度 */
+    TDL_CAMERA_FMT_E          out_fmt;              /* 输出格式 */
+    TDL_CAMERA_GET_FRAME_CB   get_frame_cb;         /* 回调解码函数 */
+    TDL_CAMERA_GET_FRAME_CB   get_encoded_frame_cb; /* 图像编码回调函数 */
 }TDL_CAMERA_CFG_T;
 ```
 
@@ -277,6 +277,10 @@ OPRT_OK表示成功，其他表示失败。
 正点原子T5 AI开发板上CAMERA的连接原理图，如下图所示。
 
 ![](.\img\09.png)
+
+摄像头接线图如下所示。
+
+![](./img/camera_on_board.jpg)
 
 ## 程序设计
 

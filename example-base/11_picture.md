@@ -156,7 +156,21 @@ OPRT_OK表示解码成功，其他表示解码失败。
 
 ​	LCD_RST: P27
 
-2，SDIO
+2，SPILCD
+
+​	DC/WR: P42
+
+​	RST: P43
+
+​	CS: P45
+
+​	SCK: P44
+
+​	SDA: P46
+
+​	BL/PWR: P9
+
+3，SDIO
 
 ​	SD_SCK- P2
 

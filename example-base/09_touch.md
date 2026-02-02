@@ -67,12 +67,12 @@ TuyaOpen/src/peripherals/touch/tdd_touch路径下，查看TuyaOpen适配的触�
 
 ## API 描述
  
-**1，tdd_touch_i2c_gt911_register函数**
+**1，tdd_tp_i2c_gt911_register函数**
 
 ​	把GT911设备注册到触摸设备中。
 
 ```C
-OPERATE_RET tdd_touch_i2c_gt911_register(char *name, TDD_TOUCH_GT911_INFO_T *cfg);
+OPERATE_RET tdd_tp_i2c_gt911_register(char *name, TDD_TP_GT911_INFO_T *cfg);
 ```
 
 ​	**1.1 参数描述**
@@ -107,7 +107,7 @@ typedef struct {
 ​	打开gt911触摸设备。
 
 ```C
-static OPERATE_RET __tdd_i2c_gt911_open(TDD_TOUCH_DEV_HANDLE_T device);
+static OPERATE_RET __tdd_i2c_gt911_open(TDD_TP_DEV_HANDLE_T device);
 ```
 
 ​	**2.1 参数描述**
@@ -123,7 +123,7 @@ static OPERATE_RET __tdd_i2c_gt911_open(TDD_TOUCH_DEV_HANDLE_T device);
 ​	读取GT911设备的坐标信息。
 
 ```C
-static OPERATE_RET __tdd_i2c_gt911_read(TDD_TOUCH_DEV_HANDLE_T device, uint8_t max_num, TDL_TOUCH_POS_T *point, uint8_t *point_num);
+static OPERATE_RET __tdd_i2c_gt911_read(TDD_TP_DEV_HANDLE_T device, uint8_t max_num, TDL_TP_POS_T *point, uint8_t *point_num);
 ```
 
 ​	**3.1 参数描述**
@@ -140,12 +140,12 @@ static OPERATE_RET __tdd_i2c_gt911_read(TDD_TOUCH_DEV_HANDLE_T device, uint8_t m
 
 ​	OPRT_OK表示成功。关于其他错误，请参考`tuya_error_code.h`。
 
-**4，tdl_touch_device_register函数**
+**4，tdl_tp_device_register函数**
 
 ​	触摸设备注册函数。
 
 ```C
-OPERATE_RET tdl_touch_device_register(char *name, TDD_TOUCH_DEV_HANDLE_T tdd_hdl, TDL_TOUCH_CONFIG_T *tp_cfg, TDD_TOUCH_INTFS_T *intfs);
+OPERATE_RET tdl_tp_device_register(char *name, TDD_TP_DEV_HANDLE_T tdd_hdl, TDL_TP_CONFIG_T *tp_cfg, TDD_TP_INTFS_T *intfs);
 ```
 
 ​	**4.1 参数描述**
@@ -162,12 +162,12 @@ OPERATE_RET tdl_touch_device_register(char *name, TDD_TOUCH_DEV_HANDLE_T tdd_hdl
 
 ​	OPRT_OK表示成功。关于其他错误，请参考`tuya_error_code.h`。
 
-**5，tdl_touch_find_dev函数**
+**5，tdl_tp_find_dev函数**
 
 ​	根据设备名称查找设备控制句柄。
 
 ```C
-TDL_TOUCH_HANDLE_T tdl_touch_find_dev(char *name);
+TDL_TP_HANDLE_T tdl_tp_find_dev(char *name);
 ```
 
 ​	**5.1 参数描述**
@@ -178,33 +178,33 @@ TDL_TOUCH_HANDLE_T tdl_touch_find_dev(char *name);
 
 ​	OPRT_OK表示成功。关于其他错误，请参考`tuya_error_code.h`。
 
-**6，tdl_touch_dev_open函数**
+**6，tdl_tp_dev_open函数**
 
 ​	打开触摸设备。
 
 ```C
-OPERATE_RET tdl_touch_dev_open(TDL_TOUCH_HANDLE_T touch_hdl);
+OPERATE_RET tdl_tp_dev_open(TDL_TP_HANDLE_T tp_hdl);
 ```
 
 ​	**6.1 参数描述**
 
-​	`touch_hdl`：触摸设备句柄
+​	`tp_hdl`：触摸设备句柄
 
 ​	**6.2 返回值**
 
 ​	OPRT_OK表示成功。关于其他错误，请参考`tuya_error_code.h`。
 
-**7，tdl_touch_dev_read函数**
+**7，tdl_tp_dev_read函数**
 
 ​	打开触摸设备。
 
 ```C
-OPERATE_RET tdl_touch_dev_read(TDL_TOUCH_HANDLE_T touch_hdl, uint8_t max_num, TDL_TOUCH_POS_T *point, uint8_t *point_num);
+OPERATE_RET tdl_tp_dev_read(TDL_TP_HANDLE_T tp_hdl, uint8_t max_num, TDL_TP_POS_T *point, uint8_t *point_num);
 ```
 
 ​	**7.1 参数描述**
 
-​	`touch_hdl`：触摸设备句柄
+​	`tp_hdl`：触摸设备句柄
 
 ​	`max_num`：坐标点数量
 
@@ -317,7 +317,7 @@ void touchpad_scan(void);
 touch.c文件是对触摸驱动芯片初始化。
 
 ```C
-static TDL_TOUCH_HANDLE_T sg_touch_hdl = NULL;      /* Handle for touch device */
+static TDL_TP_HANDLE_T sg_touch_hdl = NULL;      /* Handle for touch device */
 _touchpad_dev tp_dev;   
 
 /**
@@ -342,13 +342,13 @@ OPERATE_RET tdd_disp_atk_touchpad_register(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
-    sg_touch_hdl = tdl_touch_find_dev(DISPLAY_NAME);
+    sg_touch_hdl = tdl_tp_find_dev(DISPLAY_NAME);
     if(NULL == sg_touch_hdl) {
         PR_ERR("touch dev %s not found", DISPLAY_NAME);
         return OPRT_NOT_FOUND;
     }
 
-    rt = tdl_touch_dev_open(sg_touch_hdl);
+    rt = tdl_tp_dev_open(sg_touch_hdl);
     if(rt != OPRT_OK) {
         PR_ERR("open touch dev failed, rt: %d", rt);
         return OPRT_NOT_FOUND;
@@ -368,10 +368,10 @@ void touchpad_scan(void)
 {
     static uint8_t last_sta = 0;
     uint8_t point_num = 0;
-    TDL_TOUCH_POS_T points[CT_MAX_TOUCH];
+    TDL_TP_POS_T points[CT_MAX_TOUCH];
 
     /* Read touch data from device immediately */
-    tdl_touch_dev_read(sg_touch_hdl, CT_MAX_TOUCH, points, &point_num);
+    tdl_tp_dev_read(sg_touch_hdl, CT_MAX_TOUCH, points, &point_num);
  
     /* Update touch state and data */
     if (point_num > 0 && point_num <= CT_MAX_TOUCH)
@@ -436,7 +436,7 @@ static OPERATE_RET __board_register_display(void)
 
     TUYA_CALL_ERR_RETURN(atk_t5ai_disp_rgb_md0700r_register(DISPLAY_NAME, &display_cfg));
 
-    TDD_TOUCH_GT911_INFO_T touch_cfg = {
+    TDD_TP_GT911_INFO_T touch_cfg = {
         .i2c_cfg =
             {
                 .port = BOARD_TOUCH_I2C_PORT,
@@ -456,7 +456,7 @@ static OPERATE_RET __board_register_display(void)
             },
     };
 
-    TUYA_CALL_ERR_RETURN(tdd_touch_i2c_gt911_register(DISPLAY_NAME, &touch_cfg));
+    TUYA_CALL_ERR_RETURN(tdd_tp_i2c_gt911_register(DISPLAY_NAME, &touch_cfg));
 
     return rt;
 }

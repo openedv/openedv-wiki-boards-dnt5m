@@ -19,134 +19,119 @@ sidebar_position: 1
 >
 > 根据主控芯片的不同，音频连接框架也会有所不同。如 `T5AI` 自带 ADC 和 DAC 接口，不需要 CODEC 芯片也可以实现音频系统。而 `ESP32-S3` 不支持 DAC，需要外挂 CODEC 芯片完成音频系统的搭建。
 
+TuyaOpen框架面向应用层提供统一的音频服务接口： `Tuya Driver Layer` 。
+
+`tdl_audio_manage.c/h`:实现了音频驱动的管理核心。它维护一个链表，用于注册和管理不同类型的音频设备驱动。应用通过调用`tdl_audio_find`、`tdl_audio_open`等函数来使用音频功能，而无需关心底层的具体实现。
+
+`tdl_audio_driver.h`:定义了所有音频设备驱动必须遵守的“标准化接口”（`TDD_AUDIO_INTFS_T`）,包括`open`、 `play`、`config`、`close`等函数指针。
+
+音频接口的中间层是进行特定硬件平台的具体实现。
+
+`tdd_audio.c/h`：针对不同平台的音频驱动实现。它负责承上启下，向上实现了`TDL`所定义的`TDD_AUDIO_INTFS_T`标准接口，向下调用`TKL`层或者原厂提供的硬件抽象接口来控制真实的硬件。`tdd_audio_register`函数会将这个驱动的实现（函数指针）注册到 `TDL`层。
+
 ## API 描述
 
-**1，tkl_ai_init函数**
+**1，tdd_audio_register函数**
 
-音频初始化。
+音频设备注册接口。
 
 ```C
-OPERATE_RET tkl_ai_init(TKL_AUDIO_CONFIG_T *pconfig, int32_t count);
+OPERATE_RET tdd_audio_register(const char *name, TDD_AUDIO_T5AI_T cfg);
 ```
 
 **1.1 参数描述**
 
-`pconfig`：解码文件路径
+`name`：音频设备名字
+
+`cfg`：音频设备配置参数
 
 ```C
 typedef struct {
-    uint32_t enable;                  	/* 是否使能 */
-    uint32_t card;                    	/* 声卡编号 */
-    TKL_AI_CHN_E ai_chn;              	/* 音频输入通道 */
-    TKL_AUDIO_SAMPLE_E sample;        	/* 采样率 */
-    TKL_AUDIO_DATABITS_E datebits;    	/* 数据位 */
+    uint8_t aec_enable;                 /* 是否使能 */
+    TKL_AI_CHN_E ai_chn;                /* 音频输入通道 */          	
+    TKL_AUDIO_SAMPLE_E sample_rate;     /* 采样率 */
+    TKL_AUDIO_DATABITS_E date_bits;    	/* 数据位 */
     TKL_AUDIO_CHANNEL_E channel;      	/* 通道数量 */
-    TKL_MEDIA_CODEC_TYPE_E codectype; 	/* 编码类型 */
-    int32_t is_softcodec;             	/* 1、软编码，0、硬件编码 */
-    uint32_t fps;                       /* 每秒帧数，建议25帧 */
-    int32_t mic_volume;                 /* MIC增益 */
-    int32_t spk_volume;                 /* SPK音量 */
-    int32_t spk_volume_offset;          /* spk音量偏移[0,100] */
-    int32_t spk_gpio;                   /* SPK放大器引脚数，<0，无放大器 */
-    int32_t spk_gpio_polarity;          /* 引脚极性，0高使能，1低使能 */
-    void *padta;
-    TKL_FRAME_PUT_CB put_cb;            /*  音频回调函数 */
-} TKL_AUDIO_CONFIG_T;
+
+    TKL_AUDIO_SAMPLE_E spk_sample_rate; /* SPK采样率 */  
+    int spk_pin;                        /* SPK放大器引脚数，<0，无放大器 */
+    int spk_pin_polarity;               /* 引脚极性，0高使能，1低使能 */
+} TDD_AUDIO_T5AI_T;
 ```
 
-`count`：配置统计。
-
-**1.2 返回值**
+**1.1 返回值**
 
 OPRT_OK表示成功，其他表示失败。
 
-**2，tkl_ai_set_vol函数**
+**2，tdl_audio_find函数**
 
-设置MIC增益。
+设备查找与管理接口。
 
 ```C
-OPERATE_RET tkl_ai_set_vol(int32_t card, TKL_AI_CHN_E chn, int32_t vol);
+TDL_AUDIO_HANDLE_T tdl_audio_find(const char *name);
 ```
 
 **2.1 参数描述**
 
-`card`：声卡编号
+`name`：音频设备名字
 
-`chn`：通道数。
+**2.1 返回值**
 
-```C
-typedef enum {
-    TKL_AI_0 = 0,
-    TKL_AI_1,
-    TKL_AI_2,
-    TKL_AI_3,
-    TKL_AI_MAX,
-} TKL_AI_CHN_E; // audio input channel
-```
+返回音频设备句柄。
 
-`vol`：屏增益。
+**3，tdl_audio_open函数**
 
-**2.2 返回值**
-
-OPRT_OK表示成功，其他表示失败。
-
-**3，tkl_ai_start函数**
-
-音频开始。
+用于打开并初始化音频设备，包括硬件初始化、引脚配置等操作，使设备进入可用状态。
 
 ```C
-OPERATE_RET tkl_ai_start(int32_t card, TKL_AI_CHN_E chn);
+OPERATE_RET tdl_audio_open(TDL_AUDIO_HANDLE_T handle, TDL_AUDIO_MIC_CB mic_cb);
 ```
 
 **3.1 参数描述**
 
-`card`：声卡编号
+`handle`：音频设备句柄
 
-`chn`：通道数。
+`mic_cb`：MIC采集回调函数
 
-```C
-typedef enum {
-    TKL_AI_0 = 0,
-    TKL_AI_1,
-    TKL_AI_2,
-    TKL_AI_3,
-    TKL_AI_MAX,
-} TKL_AI_CHN_E; // audio input channel
-```
-
-**3.2 返回值：**
+**3.1 返回值**
 
 OPRT_OK表示成功，其他表示失败。
 
-**4，tkl_ao_set_vol函数**
+**4，tdl_audio_volume_set函数**
 
-音频开始。
+用于动态调节音频输出音量，控制扬声器功放增益。
 
 ```C
-OPERATE_RET tkl_ao_set_vol(int32_t card, TKL_AO_CHN_E chn, void *handle, int32_t vol);
+OPERATE_RET tdl_audio_volume_set(TDL_AUDIO_HANDLE_T handle, uint8_t volume);
 ```
 
 **4.1 参数描述**
 
-`card`：声卡编号
+`handle`：音频设备句柄
 
-`chn`：通道数
+`volume`：音量
+
+**4.2 返回值**
+
+OPRT_OK表示成功，其他表示失败。
+
+**5，tdl_audio_play函数**
+
+用于播放音频数据，将音频帧通过硬件接口输出到扬声器。
 
 ```C
-typedef enum {
-    TKL_AI_0 = 0,
-    TKL_AI_1,
-    TKL_AI_2,
-    TKL_AI_3,
-    TKL_AI_MAX,
-} TKL_AI_CHN_E; // audio input channel
+OPERATE_RET tdl_audio_play(TDL_AUDIO_HANDLE_T handle, uint8_t *data, uint32_t len);
 ```
 
-`handle`：音频句柄
+**5.1 参数描述**
 
-`vol`：MIC增益
+`handle`：音频设备句柄
 
-**4.2 返回值：**
+`data`：音频数据缓冲区
+
+`len`：数据长度
+
+**5.2 返回值：**
 
 OPRT_OK表示成功，其他表示失败。
 
@@ -154,7 +139,7 @@ OPRT_OK表示成功，其他表示失败。
 
 ### 例程功能
 
-1，测试T5自带 ADC 和 DAC 接口。长按KEY按键可持续录制当前的声音，释放KEY按键时，可播放录制的声音。
+1，测试T5自带 ADC 和 DAC 接口。长按KEY按键可持续录制当前的声音，释放KEY按键时，可播放录制的声音。最后还会保存文件到TF卡。
 
 ### 硬件资源
 
@@ -230,7 +215,7 @@ OPRT_OK表示成功，其他表示失败。
 
 ### 原理图
 
-正点原子T5 AI开发板上MIC和SPK卡的连接原理图，如下图所示。
+正点原子T5 AI开发板上MIC和SPK的连接原理图，如下图所示。
 
 ![](.\img\10.png)
 
@@ -238,74 +223,325 @@ OPRT_OK表示成功，其他表示失败。
 
 ### 1，录音驱动代码
 
-这里我们只讲解核心代码，详细的源码请大家参考光盘资料本实验对应的源码。录音源码包括4个文件：wav_encode.c、wav_encode.h、wav_record.c和wav_record.h。他们位于components\Middlewares\WAV文件夹下。
+这里我们只讲解核心代码，详细的源码请大家参考光盘资料本实验对应的源码。录音源码包括4个文件：wav_encode.c、wav_encode.h、mic_record.c和mic_record.h。他们位于components\Middlewares\MIC_RECORD文件夹下。
 
-wav_record.h文件是对音频配置参数做了相关定义以及函数声明。
+mic_record.h文件是对音频相关函数声明。
 
 ```C
-/* Only use SD card for recording */
-#define RECORDER_FILE_DIR      "/sdcard/RECORD"
-
-#define SPEAKER_ENABLE_PIN TUYA_GPIO_NUM_17
-
-
-#define MIC_SAMPLE_RATE TKL_AUDIO_SAMPLE_16K    /* MIC sample rate */
-#define MIC_SAMPLE_BITS TKL_AUDIO_DATABITS_16   /* MIC sample bits */
-#define MIC_CHANNEL TKL_AUDIO_CHANNEL_MONO      /* MIC channel */
-
-#define MIC_RECORD_DURATION_MS (3 * 1000)       /* assist in determining the buffer size */
-#define PCM_BUF_SIZE    (MIC_RECORD_DURATION_MS * MIC_SAMPLE_RATE * MIC_SAMPLE_BITS * MIC_CHANNEL / 8 / 1000)   /* RINGBUF size */
-#define PCM_FRAME_SIZE  (10 * MIC_SAMPLE_RATE * MIC_SAMPLE_BITS * MIC_CHANNEL / 8 / 1000)                       /* 10ms PCM data size */
-
-struct recorder_ctx
-{
-    TUYA_RINGBUFF_T pcm_buf;
-    BOOL_T recording;           /* Recording status */
-    BOOL_T playing;             /* Playing status */
-    TUYA_FILE file_hdl;         /* Recording file handle */
-    char current_pcm_path[128]; /* Current PCM file path */
-    char current_wav_path[128]; /* Current WAV file path */
-    uint32_t file_index;        /* File index counter */
-};
-
 /* Function Declaration */
-void wav_recorder();
+void mic_recorder();
 ```
 
-wav_record.c文件是音频文件生成以及播放相关函数。
+mic_record.c文件是音频文件生成以及播放相关函数。
 
 ```C
-struct recorder_ctx sg_recorder_ctx =
+#define RECORD_DURATION_MS (3 * 1000) /* Record duration in milliseconds */
+
+typedef enum {
+    RECORDER_STATUS_IDLE = 0,
+    RECORDER_STATUS_START,
+    RECORDER_STATUS_RECORDING,
+    RECORDER_STATUS_END,
+    RECORDER_STATUS_PLAYING,
+} RECORDER_STATUS_E;
+
+static RECORDER_STATUS_E sg_recorder_status = RECORDER_STATUS_IDLE;
+static TDL_AUDIO_HANDLE_T sg_audio_hdl = NULL;
+static TDL_AUDIO_INFO_T sg_audio_info = {0};
+static TUYA_RINGBUFF_T sg_recorder_pcm_rb = NULL;
+
+#if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1)
+/**
+ * @brief       Button event callback function, controls recorder status based on button events
+ * @param[in]   name    Button name string
+ * @param[in]   event   Button touch event type (e.g., press down, release)
+ * @param[in]   argc    Extra parameter (unused)
+ * @note
+ *      - On button press down (TDL_BUTTON_PRESS_DOWN), if the recorder is idle, start recording; otherwise, prompt to wait for idle status
+ *      - On button release (TDL_BUTTON_PRESS_UP), if the recorder is recording, stop recording
+ */
+static void __button_function_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event, void *argc)
 {
-    .pcm_buf = NULL,
-    .recording = FALSE,
-    .playing = FALSE,
-    .file_hdl = NULL,
-    .current_pcm_path = {0},
-    .current_wav_path = {0},
-    .file_index = 0,
-};
+    argc = argc;
+
+    switch (event) {
+    case TDL_BUTTON_PRESS_DOWN: {
+        PR_NOTICE("%s: single click", name);
+        tftlcd_fill_rect(30, 210, 200, 16, WHITE);  /* Clear previous status */
+        tftlcd_show_string(30, 210, 200, 16, 16, "Recording...", BLUE);
+        if (sg_recorder_status == RECORDER_STATUS_IDLE) {
+            sg_recorder_status = RECORDER_STATUS_START;
+        } else {
+            PR_WARN("Please wait status IDLE");
+        }
+    } break;
+
+    case TDL_BUTTON_PRESS_UP: {
+        PR_NOTICE("%s: release", name);
+        /* Display recording done on LCD */
+        tftlcd_fill_rect(30, 210, 200, 16, WHITE);  /* Clear previous status */
+        tftlcd_show_string(30, 210, 200, 16, 16, "Playing...", GREEN);
+        if (sg_recorder_status == RECORDER_STATUS_RECORDING) {
+            sg_recorder_status = RECORDER_STATUS_END;
+        }
+    } break;
+
+    default:
+        break;
+    }
+}
+#endif
 
 /**
- * @brief       Audio frame callback function
- * @param[in]   pframe: Audio frame information
- * @return      Used size of the audio frame
- * @note        This callback is called by the audio driver when audio data is available
- *              It writes audio data to the ring buffer when recording is active
+ * @brief       Get the next available file index by scanning RECORD directory
+ * @param       None
+ * @return      uint32_t Next available file index
+ * @note        Scans /sdcard/RECORD/ for existing record_XXX.wav files
+ *              and returns the next available index number
  */
-static int _audio_frame_put(TKL_AUDIO_FRAME_INFO_T *pframe)
+static uint32_t __get_next_file_index(void)
 {
-    if (NULL == sg_recorder_ctx.pcm_buf)
-    {
-        return pframe->used_size;
+    uint32_t max_index = 0;
+    TUYA_DIR dir = NULL;
+    TUYA_FILEINFO file_info;
+    const char *filename = NULL;
+    BOOL_T is_dir = FALSE;
+
+    /* Open RECORD directory */
+    if (tkl_dir_open("/sdcard/RECORD", &dir) != OPRT_OK) {
+        PR_WARN("Failed to open RECORD directory, starting from index 0");
+        return 0;
     }
 
-    if (sg_recorder_ctx.recording)
-    {
-        tuya_ring_buff_write(sg_recorder_ctx.pcm_buf, pframe->pbuf, pframe->used_size);
+    /* Scan all files in directory */
+    while (tkl_dir_read(dir, &file_info) == OPRT_OK) {
+        /* Get filename */
+        if (tkl_dir_name(file_info, &filename) != OPRT_OK || filename == NULL) {
+            continue;
+        }
+
+        /* Check if it's a file (not directory) */
+        if (tkl_dir_is_directory(file_info, &is_dir) != OPRT_OK || is_dir == TRUE) {
+            continue;
+        }
+
+        /* Check if filename matches pattern: record_XXX.wav */
+        if (strncmp(filename, "record_", 7) == 0 && strstr(filename, ".wav") != NULL) {
+            /* Extract index number */
+            uint32_t index = 0;
+            if (sscanf(filename, "record_%u.wav", &index) == 1) {
+                if (index >= max_index) {
+                    max_index = index + 1;
+                }
+            }
+        }
     }
 
-    return pframe->used_size;
+    /* Close directory */
+    tkl_dir_close(dir);
+
+    PR_NOTICE("Next file index: %u", max_index);
+    return max_index;
+}
+
+/**
+ * @brief       Save recorded audio to WAV file
+ * @param       None
+ * @return      OPERATE_RET OPRT_OK on success, error code otherwise
+ * @note
+ *      - Reads all PCM data from the recorder ring buffer
+ *      - Saves the data as a WAV file to SD card
+ *      - File naming: record_XXX.wav (incremental numbering)
+ *      - Displays save status on LCD
+ */
+static OPERATE_RET __save_audio_to_wav_file(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+    uint32_t data_len = 0;
+    uint8_t *pcm_buffer = NULL;
+    char filename[64] = {0};
+    uint32_t file_index = 0;
+
+    if (NULL == sg_recorder_pcm_rb || 0 == sg_audio_info.frame_size) {
+        PR_ERR("Invalid recorder state");
+        return OPRT_INVALID_PARM;
+    }
+
+    /* Get total data length in ring buffer */
+    data_len = tuya_ring_buff_used_size_get(sg_recorder_pcm_rb);
+    if (data_len == 0) {
+        PR_WARN("No data to save");
+        tftlcd_fill_rect(30, 210, 200, 16, WHITE);
+        tftlcd_show_string(30, 210, 200, 16, 16, "No data!", RED);
+        tal_system_sleep(1000);
+        return OPRT_OK;
+    }
+
+    PR_NOTICE("Saving %d bytes of audio data", data_len);
+
+    /* Display saving status */
+    tftlcd_fill_rect(30, 210, 200, 16, WHITE);
+    tftlcd_show_string(30, 210, 200, 16, 16, "Saving...", BLUE);
+
+    /* Allocate buffer for PCM data */
+    pcm_buffer = tkl_system_psram_malloc(data_len);
+    if (NULL == pcm_buffer) {
+        PR_ERR("Failed to allocate memory for PCM buffer");
+        tftlcd_fill_rect(30, 210, 200, 16, WHITE);
+        tftlcd_show_string(30, 210, 200, 16, 16, "Save Failed!", RED);
+        tal_system_sleep(1000);
+        return OPRT_MALLOC_FAILED;
+    }
+
+    /* Read all data from ring buffer */
+    tuya_ring_buff_read(sg_recorder_pcm_rb, pcm_buffer, data_len);
+
+    /* Create RECORD directory if it doesn't exist */
+    BOOL_T dir_exist = FALSE;
+    rt = tkl_fs_is_exist("/sdcard/RECORD", &dir_exist);
+
+    /* If directory doesn't exist or check failed, try to create it */
+    if (rt != OPRT_OK || dir_exist == FALSE) {
+        rt = tkl_fs_mkdir("/sdcard/RECORD");
+        if (rt != OPRT_OK) {
+            PR_WARN("Failed to create RECORD directory (may already exist), error: %d", rt);
+            /* Continue anyway, directory might already exist */
+        } else {
+            PR_NOTICE("Created RECORD directory");
+        }
+    }
+
+    /* Get next available file index by scanning directory */
+    file_index = __get_next_file_index();
+
+    /* Generate filename with incremental index */
+    snprintf(filename, sizeof(filename), "/sdcard/RECORD/record_%03d.wav", file_index);
+
+    /* Save to WAV file */
+    rt = wav_encode_save_file(filename, pcm_buffer, data_len,
+                              16000,  /* Sample rate: 16kHz */
+                              16,     /* Bit depth: 16 bits */
+                              1);     /* Channel: Mono */
+
+    /* Write data back to ring buffer for playback */
+    if (OPRT_OK == rt) {
+        tuya_ring_buff_write(sg_recorder_pcm_rb, pcm_buffer, data_len);
+    }
+
+    /* Free buffer */
+    tkl_system_psram_free(pcm_buffer);
+    pcm_buffer = NULL;
+
+    /* Display result */
+    tftlcd_fill_rect(30, 210, 200, 16, WHITE);
+    if (OPRT_OK == rt) {
+        PR_NOTICE("Audio saved successfully: %s", filename);
+        tftlcd_show_string(30, 210, 200, 16, 16, "Saved!", GREEN);
+
+        /* Display filename on LCD */
+        tftlcd_fill_rect(30, 230, 200, 16, WHITE);
+        char display_name[32] = {0};
+        snprintf(display_name, sizeof(display_name), "File: record_%03d.wav", file_index);
+        tftlcd_show_string(30, 230, 200, 16, 16, display_name, BLUE);
+    } else {
+        PR_ERR("Failed to save audio file, error: %d", rt);
+        tftlcd_show_string(30, 210, 200, 16, 16, "Save Failed!", RED);
+    }
+
+    tal_system_sleep(1500);
+
+    return rt;
+}
+
+/**
+ * @brief       Play audio data from the recorder ring buffer
+ * @param       None
+ * @return      None
+ * @note
+ *      - Checks if the recorder ring buffer, audio handle, and frame size are valid
+ *      - Allocates a frame buffer for audio playback
+ *      - Reads audio data from the recorder ring buffer and plays it frame by frame
+ *      - If there is no data, playback is skipped
+ *      - Frees the allocated frame buffer after playback
+ */
+static void play_from_recorder_rb(void)
+{
+    if (NULL == sg_recorder_pcm_rb || NULL == sg_audio_hdl ||\
+       0 == sg_audio_info.frame_size) {
+        return;
+    }
+
+    uint32_t data_len = tuya_ring_buff_used_size_get(sg_recorder_pcm_rb);
+    if (data_len == 0) {
+        PR_NOTICE("No data in recorder ring buffer");
+        return;
+    }
+
+    uint32_t out_len = 0;
+    uint8_t *frame_buf = tkl_system_psram_malloc(sg_audio_info.frame_size);
+    if (NULL == frame_buf) {
+        PR_ERR("tkl_system_psram_malloc failed");
+        return;
+    }
+
+    do {
+        memset(frame_buf, 0, sg_audio_info.frame_size);
+        out_len = 0;
+
+        data_len = tuya_ring_buff_used_size_get(sg_recorder_pcm_rb);
+        if (data_len == 0) {
+            PR_NOTICE("No data in recorder ring buffer");
+            break;
+        }
+
+        if (data_len >sg_audio_info.frame_size) {
+            tuya_ring_buff_read(sg_recorder_pcm_rb, frame_buf, sg_audio_info.frame_size);
+            out_len = sg_audio_info.frame_size;
+        } else {
+            tuya_ring_buff_read(sg_recorder_pcm_rb, frame_buf, data_len);
+            out_len = data_len;
+        }
+
+        tdl_audio_play(sg_audio_hdl, frame_buf, out_len);
+    } while (1);
+
+    if (frame_buf) {
+        tkl_system_psram_free(frame_buf);
+        frame_buf = NULL;
+    }
+}
+
+/**
+ * @brief       Handles incoming audio frames and writes them to the recorder ring buffer
+ * @param[in]   type    Audio frame format type
+ * @param[in]   status  Audio status
+ * @param[in]   data    Pointer to audio frame data
+ * @param[in]   len     Length of the audio frame data
+ * @return      None
+ * @note
+ *      - Only writes data to the ring buffer when the recorder is in the RECORDING status
+ *      - Checks if there is enough free space in the ring buffer before writing
+ *      - If the buffer does not have enough space, a warning is printed and the data is not written
+ */
+static void get_audio_frame(TDL_AUDIO_FRAME_FORMAT_E type, TDL_AUDIO_STATUS_E status,\
+                                      uint8_t *data, uint32_t len)
+{
+    type = type;
+    status = status;
+    if (RECORDER_STATUS_RECORDING != sg_recorder_status) {
+        return;
+    }
+
+    if (sg_recorder_pcm_rb) {
+        uint32_t free_size = tuya_ring_buff_free_size_get(sg_recorder_pcm_rb);
+        if (free_size < len) {
+            PR_WARN("recorder ring buffer overflow, free_size:%u, need_size:%u", free_size, len);
+            return;
+        }
+        tuya_ring_buff_write(sg_recorder_pcm_rb, data, len);
+    }
+
+    return;
 }
 
 /**
@@ -319,334 +555,28 @@ static int _audio_frame_put(TKL_AUDIO_FRAME_INFO_T *pframe)
  *              - Microphone volume: 100
  *              - Speaker volume: 80
  */
-static void audio_init(void)
-{
-    int ret = 0;
-    TKL_AUDIO_CONFIG_T config ={0};
-
-    config.enable = false;
-    config.card = TKL_AUDIO_TYPE_BOARD;
-    config.ai_chn = TKL_AI_0;
-    config.spk_gpio_polarity= 0;                /* sample */
-    config.sample = MIC_SAMPLE_RATE;            /* sample */
-    config.datebits = MIC_SAMPLE_BITS;          /* datebit */
-    config.channel = TKL_AUDIO_CHANNEL_MONO;    /* channel num */
-    config.codectype = TKL_CODEC_AUDIO_PCM;     /* codec type */
-
-    config.spk_gpio = SPEAKER_ENABLE_PIN;
-    config.put_cb = _audio_frame_put;
-
-    ret = tkl_ai_init(&config, 1);
-
-    /* Set microphone input volume (0-100, higher = louder recording) */
-    ret |= tkl_ai_set_vol(TKL_AUDIO_TYPE_BOARD, 0, 100);
-
-    ret |= tkl_ai_start(TKL_AUDIO_TYPE_BOARD,0);
-
-    /* Set speaker output volume (0-100, higher = louder playback) */
-    tkl_ao_set_vol(TKL_AUDIO_TYPE_BOARD, 0, NULL, 80);
-
-    return;
-}
-
-/**
- * @brief       Scan directory and find the next available file index
- * @param[in]   none
- * @return      Next available file index (0-99)
- * @note        Only scans WAV files since PCM files are deleted after playback
- *              Stops scanning after finding 10 consecutive empty slots for optimization
- *              Returns 0 if directory doesn't exist or no files found
- */
-static uint32_t get_next_file_index(void)
-{
-    uint32_t max_index = 0;
-    BOOL_T is_exist = FALSE;
-
-    /* Check if directory exists */
-    tkl_fs_is_exist(RECORDER_FILE_DIR, &is_exist);
-    if (is_exist == FALSE)
-    {
-        PR_DEBUG("Directory does not exist, starting from index 0");
-        return 0;
-    }
-
-    /* Open directory */
-    TUYA_DIR dir_hdl;
-    OPERATE_RET rt = tkl_dir_open(RECORDER_FILE_DIR, &dir_hdl);
-    if (OPRT_OK != rt)
-    {
-        PR_ERR("Failed to open directory: %s", RECORDER_FILE_DIR);
-        return 0;
-    }
-
-    /* Scan all files in directory */
-    char full_path[300];
-    uint32_t file_count = 0;
-    uint32_t empty_count = 0;
-
-    PR_NOTICE("Scanning directory: %s", RECORDER_FILE_DIR);
-
-    /* Manual scan: try each possible index from 0 to 99 */
-    /* Only check WAV files since PCM files are deleted after playback */
-    for (int i = 0; i < 100; i++)
-    {
-        /* Check if record_XX.wav exists */
-        snprintf(full_path, sizeof(full_path), "%s/record_%02d.wav", RECORDER_FILE_DIR, i);
-        BOOL_T wav_exist = FALSE;
-        tkl_fs_is_exist(full_path, &wav_exist);
-
-        if (wav_exist)
-        {
-            PR_NOTICE("Found recording file: record_%02d.wav", i);
-            max_index = (uint32_t)i;
-            file_count++;
-            empty_count = 0;  /* Reset empty counter */
-        }
-        else
-        {
-            empty_count++;
-            /* Stop scanning if we found 10 consecutive empty slots */
-            if (empty_count >= 10)
-            {
-                PR_NOTICE("Found 10 consecutive empty slots, stopping scan at index %d", i);
-                break;
-            }
-        }
-    }
-
-    PR_NOTICE("Total recordings found: %d, max_index: %d", file_count, max_index);
-
-    tkl_dir_close(dir_hdl);
-
-    /* Return next available index */
-    uint32_t next_index = max_index + 1;
-    PR_DEBUG("Found max index %d, next index will be %d", max_index, next_index);
-
-    return next_index;
-}
-
-/**
- * @brief       Read audio data from ring buffer and write to file
- * @param[in]   none
- * @return      none
- * @note        Called periodically in main loop to save recorded audio data
- *              Reads data from ring buffer and writes to PCM file
- */
-static void mic_record(void)
-{
-    if (NULL == sg_recorder_ctx.file_hdl)
-    {
-        return;
-    }
-
-    uint32_t data_len = 0;
-    data_len = tuya_ring_buff_used_size_get(sg_recorder_ctx.pcm_buf);
-    if (data_len == 0)
-    {
-        return;
-    }
-
-    char *read_buf = tkl_system_psram_malloc(data_len);
-    if (NULL == read_buf)
-    {
-        PR_ERR("tkl_system_psram_malloc failed");
-        return;
-    }
-
-    /* Write to file */
-    tuya_ring_buff_read(sg_recorder_ctx.pcm_buf, read_buf, data_len);
-    uint32_t rt_len = tkl_fwrite(read_buf, data_len, sg_recorder_ctx.file_hdl);
-    if (rt_len != data_len)
-    {
-        PR_ERR("write file failed, maybe disk full");
-        PR_ERR("write len %d, data len %d", rt_len, data_len);
-    }
-
-    if (read_buf)
-    {
-        tkl_system_psram_free(read_buf);
-        read_buf = NULL;
-    }
-
-    return;
-}
-
-/**
- * @brief       Play recorded audio from PCM file
- * @param[in]   none
- * @return      none
- * @note        Reads PCM file in chunks and sends to audio output
- *              Uses 10ms frame size for smooth playback
- */
-static void app_recode_play_from_flash(void)
-{
-    /* Read file */
-    TUYA_FILE file_hdl = tkl_fopen(sg_recorder_ctx.current_pcm_path, "r");
-    if (NULL == file_hdl)
-    {
-        PR_ERR("open file failed: %s", sg_recorder_ctx.current_pcm_path);
-        return;
-    }
-
-    uint32_t data_len = 0;
-    char *read_buf = tkl_system_psram_malloc(PCM_FRAME_SIZE);
-    if (NULL == read_buf)
-    {
-        PR_ERR("tkl_system_psram_malloc failed");
-        return;
-    }
-
-    do {
-        memset(read_buf, 0, PCM_FRAME_SIZE);
-        data_len = tkl_fread(read_buf, PCM_FRAME_SIZE, file_hdl);
-        if (data_len == 0)
-        {
-            break;
-        }
-
-        TKL_AUDIO_FRAME_INFO_T frame_info;
-        frame_info.pbuf = read_buf;
-        frame_info.used_size = data_len;
-        tkl_ao_put_frame(0, 0, NULL, &frame_info);
-    } while (1);
-
-    if (read_buf)
-    {
-        tkl_system_psram_free(read_buf);
-        read_buf = NULL;
-    }
-
-    if (file_hdl)
-    {
-        tkl_fclose(file_hdl);
-        file_hdl = NULL;
-    }
-}
-
-/**
- * @brief       Play recorded audio file
- * @param[in]   none
- * @return      none
- * @note        Wrapper function for playback functionality
- */
-static void app_recode_play(void)
-{
-    app_recode_play_from_flash();
-    return;
-}
-
-/**
- * @brief       Convert PCM file to WAV format
- * @param[in]   pcm_file: Path to the PCM file
- * @return      OPRT_OK on success, error code otherwise
- * @note        Creates WAV file by adding WAV header to PCM data
- *              Output WAV file path is stored in sg_recorder_ctx.current_wav_path
- */
-static OPERATE_RET app_pcm_to_wav(char *pcm_file)
+static OPERATE_RET audio_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
-    uint8_t *read_buf = NULL;
-    uint8_t head[WAV_HEAD_LEN] = {0};
-    uint32_t pcm_len = 0;
-    uint32_t sample_rate = MIC_SAMPLE_RATE;
-    uint16_t bit_depth = MIC_SAMPLE_BITS;
-    uint16_t channel = MIC_CHANNEL;
+    uint32_t buf_len = 0;
 
-    /* Get pcm file length */
-    TUYA_FILE pcm_hdl = tkl_fopen(pcm_file, "r");
-    if (NULL == pcm_hdl) 
-    {
-        PR_ERR("open file failed");
-        return OPRT_FILE_OPEN_FAILED;
-    }
-    tkl_fseek(pcm_hdl, 0, 2);
-    pcm_len = tkl_ftell(pcm_hdl);
-
-    tkl_fclose(pcm_hdl);
-    pcm_hdl = NULL;
-
-    PR_DEBUG("pcm file len %d", pcm_len);
-    if (pcm_len == 0) 
-    {
-        PR_ERR("pcm file is empty");
-        return OPRT_COM_ERROR;
+    TUYA_CALL_ERR_RETURN(tdl_audio_find(AUDIO_CODEC_NAME, &sg_audio_hdl));
+    TUYA_CALL_ERR_RETURN(tdl_audio_open(sg_audio_hdl, get_audio_frame));
+    TUYA_CALL_ERR_RETURN(tdl_audio_get_info(sg_audio_hdl, &sg_audio_info));
+    if(0 == sg_audio_info.frame_size || 0 == sg_audio_info.sample_tm_ms) {
+        PR_ERR("get audio info err");
+        return OPRT_INVALID_PARM;
     }
 
-    /* Get wav head */
-    rt = app_get_wav_head(pcm_len, 1, sample_rate, bit_depth, channel, head);
-    if (OPRT_OK != rt) 
-    {
-        PR_ERR("app_get_wav_head failed, rt = %d", rt);
-        return rt;
-    }
+    buf_len = (RECORD_DURATION_MS / sg_audio_info.sample_tm_ms) * sg_audio_info.frame_size;
+    TUYA_CALL_ERR_RETURN(tuya_ring_buff_create(buf_len, \
+                                               OVERFLOW_PSRAM_STOP_TYPE, &sg_recorder_pcm_rb));
 
-    /* TAL_PR_HEXDUMP_DEBUG("wav head", head, WAV_HEAD_LEN); */
+    tdl_audio_volume_set(sg_audio_hdl, 60);
 
-    /* Create wav file */
-    TUYA_FILE wav_hdl = tkl_fopen(sg_recorder_ctx.current_wav_path, "w");
-    if (NULL == wav_hdl)
-    {
-        PR_ERR("open file: %s failed", sg_recorder_ctx.current_wav_path);
-        rt = OPRT_FILE_OPEN_FAILED;
-        goto __EXIT;
-    }
+    PR_NOTICE("audio_open success");
 
-    /* Write wav head */
-    tkl_fwrite(head, WAV_HEAD_LEN, wav_hdl);
-
-    /* Read pcm file */
-    read_buf = tkl_system_psram_malloc(PCM_FRAME_SIZE);
-    if (NULL == read_buf) 
-    {
-        PR_ERR("tkl_system_psram_malloc failed");
-        /* return OPRT_COM_ERROR; */
-        rt = OPRT_MALLOC_FAILED;
-        goto __EXIT;
-    }
-
-    PR_DEBUG("pcm file len %d", pcm_len);
-    pcm_hdl = tkl_fopen(pcm_file, "r");
-    if (NULL == pcm_hdl) 
-    {
-        PR_ERR("open file failed");
-        rt = OPRT_FILE_OPEN_FAILED;
-        goto __EXIT;
-    }
-
-    tkl_fseek(pcm_hdl, WAV_HEAD_LEN, 0);
-
-    /* Write wav data */
-    do {
-        memset(read_buf, 0, PCM_FRAME_SIZE);
-        uint32_t read_len = tkl_fread(read_buf, PCM_FRAME_SIZE, pcm_hdl);
-        if (read_len == 0) 
-        {
-            break;
-        }
-
-        tkl_fwrite(read_buf, read_len, wav_hdl);
-    } while (1);
-
-__EXIT:
-    if (pcm_hdl) 
-    {
-        tkl_fclose(pcm_hdl);
-        pcm_hdl = NULL;
-    }
-
-    if (wav_hdl) 
-    {
-        tkl_fclose(wav_hdl);
-        wav_hdl = NULL;
-    }
-
-    if (NULL != read_buf) 
-    {
-        tkl_system_psram_free(read_buf);
-        read_buf = NULL;
-    }
-
-    return rt;
+    return OPRT_OK;
 }
 
 /**
@@ -660,178 +590,64 @@ __EXIT:
  *              - PCM files are deleted after playback to save space
  *              - Maximum recording duration: 3 seconds (limited by buffer size)
  */
-void wav_recorder(void)
+void mic_recorder(void)
 {
     OPERATE_RET rt = OPRT_OK;
-
-    /* Create PCM buffer */
-    if (NULL == sg_recorder_ctx.pcm_buf)
-    {
-        PR_DEBUG("create pcm buffer size %d", PCM_BUF_SIZE);
-        rt = tuya_ring_buff_create(PCM_BUF_SIZE, OVERFLOW_PSRAM_STOP_TYPE, &sg_recorder_ctx.pcm_buf);
-        if (OPRT_OK != rt)
-        {
-            PR_ERR("tuya_ring_buff_create failed, rt = %d", rt);
-            return;
-        }
-    }
-
     audio_init();
 
-    /* Initialize file index by scanning existing files */
-    sg_recorder_ctx.file_index = get_next_file_index();
-    PR_NOTICE("Starting with file index: %d", sg_recorder_ctx.file_index);
+#if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1)
+    // button create
+    TDL_BUTTON_CFG_T button_cfg = {.long_start_valid_time = 3000,
+                                   .long_keep_timer = 1000,
+                                   .button_debounce_time = 50,
+                                   .button_repeat_valid_count = 0,
+                                   .button_repeat_valid_time = 500};
+    TDL_BUTTON_HANDLE button_hdl = NULL;
 
-    for (;;)
-    {
-        mic_record();
+    TUYA_CALL_ERR_LOG(tdl_button_create(BUTTON_NAME, &button_cfg, &button_hdl));
 
-        /* Get key status */
-        KEY_STATUS_E key_status = get_key_status();
+    tdl_button_event_register(button_hdl, TDL_BUTTON_PRESS_DOWN, __button_function_cb);
+    tdl_button_event_register(button_hdl, TDL_BUTTON_PRESS_UP, __button_function_cb);
+#endif
 
-        /* Check if key is released - stop recording */
-        if (key_status == KEY_STATUS_PRESS_UP)
-        {
-            reset_key_status();  /* Reset key status after handling */
+    while(1) {
+        switch(sg_recorder_status) {
+            case RECORDER_STATUS_START:
+                PR_NOTICE("Start recording");
+                sg_recorder_status = RECORDER_STATUS_RECORDING;
+                break;
 
-            /* End recording */
-            if (TRUE == sg_recorder_ctx.recording) 
-            {
-                sg_recorder_ctx.recording = FALSE;
-                sg_recorder_ctx.playing = TRUE;
+            case RECORDER_STATUS_RECORDING:
+                break;
 
-                if (sg_recorder_ctx.file_hdl)
-                {
-                    tkl_fclose(sg_recorder_ctx.file_hdl);
-                    sg_recorder_ctx.file_hdl = NULL;
-                }
+            case RECORDER_STATUS_END:
+                PR_NOTICE("End recording");
 
-                /* Convert pcm to wav */
-                OPERATE_RET rt = app_pcm_to_wav(sg_recorder_ctx.current_pcm_path);
-                if (OPRT_OK != rt)
-                {
-                    PR_ERR("app_pcm_to_wav failed, rt = %d", rt);
-                }
+                /* Save audio to WAV file */
+                __save_audio_to_wav_file();
 
-                PR_DEBUG("stop recording");
+                sg_recorder_status = RECORDER_STATUS_PLAYING;
+                break;
 
-                /* Display recording done on LCD */
-                tftlcd_fill_rect(30, 210, 200, 16, WHITE);  /* Clear previous status */
-                tftlcd_show_string(30, 210, 200, 16, 16, "Recording Done!", GREEN);
-                tal_system_sleep(1000);
-            }
-
-            /* Start playing */
-            if (TRUE == sg_recorder_ctx.playing) 
-            {
-                PR_DEBUG("start playing");
-
-                /* Display playing status on LCD */
-                tftlcd_fill_rect(30, 210, 200, 16, WHITE);  /* Clear previous status */
-                tftlcd_show_string(30, 210, 200, 16, 16, "Playing...", BLUE);
-
-                sg_recorder_ctx.playing = FALSE;
-                app_recode_play();
-                PR_DEBUG("stop playing");
-
-                /* Delete PCM file after playing (keep only WAV) */
-                BOOL_T is_exist = FALSE;
-                tkl_fs_is_exist(sg_recorder_ctx.current_pcm_path, &is_exist);
-                if (is_exist == TRUE)
-                {
-                    OPERATE_RET rt = tkl_fs_remove(sg_recorder_ctx.current_pcm_path);
-                    if (OPRT_OK == rt)
-                    {
-                        PR_NOTICE("Deleted PCM file: %s", sg_recorder_ctx.current_pcm_path);
-                    }
-                    else
-                    {
-                        PR_ERR("Failed to delete PCM file: %s", sg_recorder_ctx.current_pcm_path);
-                    }
-                }
-
-                /* Display playing done on LCD */
-                tftlcd_fill_rect(30, 210, 200, 16, WHITE);  /* Clear previous status */
-                tftlcd_show_string(30, 210, 200, 16, 16, "Play Done!", GREEN);
-
-                /* Clear filename display */
-                tftlcd_fill_rect(30, 230, 200, 16, WHITE);  /* Clear filename */
-            }
-
-            tal_system_sleep(100);
-            continue;
+            case RECORDER_STATUS_PLAYING:
+                PR_NOTICE("Start playing");
+                play_from_recorder_rb();
+                PR_NOTICE("End playing");
+                sg_recorder_status = RECORDER_STATUS_IDLE;
+                break;
+            case RECORDER_STATUS_IDLE:
+                tuya_ring_buff_reset(sg_recorder_pcm_rb);
+                break;
+            default:
+                break;
         }
 
-        /* Check if key is pressed down - start recording */
-        if (key_status == KEY_STATUS_PRESS_DOWN)
-        {
-            reset_key_status();  /* Reset key status after handling */
-
-            /* Start recording */
-            if (FALSE == sg_recorder_ctx.recording)
-            {
-                /* Ensure RECORD directory exists */
-                BOOL_T is_exist = FALSE;
-                tkl_fs_is_exist(RECORDER_FILE_DIR, &is_exist);
-                if (is_exist == FALSE)
-                {
-                    OPERATE_RET rt = tkl_fs_mkdir(RECORDER_FILE_DIR);
-                    if (OPRT_OK == rt)
-                    {
-                        PR_DEBUG("Created directory: %s", RECORDER_FILE_DIR);
-                    }
-                    else
-                    {
-                        PR_ERR("Failed to create directory: %s", RECORDER_FILE_DIR);
-                    }
-                }
-
-                /* Generate unique filename with incremental index */
-                snprintf(sg_recorder_ctx.current_pcm_path, sizeof(sg_recorder_ctx.current_pcm_path),
-                         "%s/record_%02d.pcm", RECORDER_FILE_DIR, sg_recorder_ctx.file_index);
-                snprintf(sg_recorder_ctx.current_wav_path, sizeof(sg_recorder_ctx.current_wav_path),
-                         "%s/record_%02d.wav", RECORDER_FILE_DIR, sg_recorder_ctx.file_index);
-
-                PR_DEBUG("New recording file: %s (index %d)", sg_recorder_ctx.current_pcm_path, sg_recorder_ctx.file_index);
-
-                /* Increment file index for next recording */
-                sg_recorder_ctx.file_index++;
-
-                /* Create recording file */
-                sg_recorder_ctx.file_hdl = tkl_fopen(sg_recorder_ctx.current_pcm_path, "w");
-                if (NULL == sg_recorder_ctx.file_hdl)
-                {
-                    PR_ERR("open file failed");
-                    continue;
-                }
-                PR_DEBUG("open file %s success", sg_recorder_ctx.current_pcm_path);
-
-                tuya_ring_buff_reset(sg_recorder_ctx.pcm_buf);
-                sg_recorder_ctx.recording = TRUE;
-                sg_recorder_ctx.playing = FALSE;
-                PR_DEBUG("start recording");
-
-                /* Display recording status on LCD */
-                tftlcd_fill_rect(30, 210, 200, 16, WHITE);  /* Clear previous status */
-                tftlcd_show_string(30, 210, 200, 16, 16, "Recording...", RED);
-
-                /* Display current recording filename on LCD */
-                char filename_display[32];
-                snprintf(filename_display, sizeof(filename_display), "File: record_%02d.wav", sg_recorder_ctx.file_index - 1);
-                tftlcd_fill_rect(30, 230, 200, 16, WHITE);  /* Clear previous filename */
-                tftlcd_show_string(30, 230, 200, 16, 16, filename_display, BLUE);
-            }
-        }
-        else
-        {
-            /* No key event, just continue */
-            tal_system_sleep(10);
-        }
+        tal_system_sleep(10);
     }
 }
 ```
 
-wav_recorder函数主要实现录音以及播放效果，长按录音，松开播放，并且保存文件到TF卡中。
+mic_recorder函数主要实现录音以及播放效果，长按录音，松开播放，并且保存文件到TF卡中。
 
 wav_encode.c和wav_encode.h文件内容主要是WAV文件的一些信息，这里就不罗列出来。
 
@@ -842,8 +658,7 @@ CMakeLists.txt文件配置内容如下。
 ```
 # Add Components
 set(module_dirs
-    MINIMP3
-    WAV
+    MIC_RECORD
 )
 
 foreach(dir ${module_dirs})
@@ -868,7 +683,7 @@ endforeach()
 #include "tkl_gpio.h"
 #include "tftlcd.h"
 #include "tfcard.h"
-#include "wav_record.h"
+#include "mic_record.h"
 #include "key.h"
 
 
@@ -898,16 +713,9 @@ void user_main(void)
     /* Display operation instructions */
     tftlcd_show_string(30, 110, 200, 16, 16, "SD Card Ready!", GREEN);
     tftlcd_show_string(30, 130, 200, 16, 16, "Press KEY: Record", BLUE);
-    tftlcd_show_string(30, 150, 200, 16, 16, "Release KEY: Stop", BLUE);
-    tftlcd_show_string(30, 190, 200, 16, 16, "Save: SD Card", GREEN);
-
-    tal_system_sleep(2000);  /* Show instructions for 2 seconds */
-
-    /* Initialize key before starting recorder */
-    key_init();
-
+    tftlcd_show_string(30, 150, 200, 16, 16, "Release play", BLUE);
     /* Start audio recorder */
-    wav_recorder();
+    mic_recorder();
 }
 
 #if OPERATING_SYSTEM == SYSTEM_LINUX
@@ -938,8 +746,8 @@ void tuya_app_main(void)
 #endif
 ```
 
-从user_main函数可以看到，初始化相关硬件之后，就调用wav_recorder函数去执行录音以及播放的功能。
+从user_main函数可以看到，初始化相关硬件之后，就调用mic_recorder函数去执行录音以及播放的功能。
 
 ## 运行验证
 
-程序下载完成后，长按KEY，MIC读取音频数据，然后将音频数据转化为PCM和WAV格式文件，并存储在SD卡中。释放KEY，停止录音，并播放录音文件。
+程序下载完成后，长按KEY，MIC读取音频数据，然后将音频数据转化为WAV格式文件，并存储在SD卡中。释放KEY，停止录音，并播放录音文件。

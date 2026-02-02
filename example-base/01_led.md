@@ -15,6 +15,8 @@ sidebar_position: 1
 
 GPIO（General Purpose I/O Ports）是通用输入/输出端口，通俗地说，就是一些引脚，可以通过它们输出高低电平或者通过它们读入引脚的状态是高电平或是低电平。
 
+**注意：模组引脚都有复用功能，可查看“platform\T5AI\t5_os\projects\tuya_app\ap\config\bk7258_ap\usr_gpio_cfg.h”文件。当某个外设使用时，可能这个引脚没有用到，但是属于该外设功能相关的引脚，那这个引脚也是不能作为普通IO使用。比如我们现在的LED引脚是P18，当使用LCD外设时，它就作为GPIO_DEV_LCD_VSYNC使用，所以这时候你把它作为一个普通的IO使用，是无效的**
+
 ## API 描述
 
 **1，tkl_gpio_init函数**
