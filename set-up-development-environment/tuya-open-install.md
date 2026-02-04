@@ -15,7 +15,7 @@ TuyaOpen 是一个面向 AIoT 行业的开源、开放的开发框架，基于�
 
 下载、安装以下工具，并添加到`环境变量`中，重启电脑，保证在终端中可以正确使用对应的命令：
 
-- Python v3.8.0 或更高版本
+- Python v3.9.0 或更高版本
 - Git v2.0.0 或更高版本
 - Make v3.0 或更高版本
 
@@ -23,13 +23,13 @@ TuyaOpen 是一个面向 AIoT 行业的开源、开放的开发框架，基于�
 
 或者从网上下载最新版本进行安装
 
-### Python v3.8.0安装
+### Python v3.14.2安装
 
-双击python-3.8.10-amd64.exe安装包。
+双击python-3.14.2-amd64.exe安装包。
 
 ![python install](.\img\python-install.png)
 
-勾选"Add Python 3.8 to PATH"，然后点击Customize installation选项。
+勾选"Add Python 3.14.2 to PATH"，然后点击Customize installation选项。
 
 ![python setup](.\img\python-setup.png)
 
@@ -37,7 +37,7 @@ TuyaOpen 是一个面向 AIoT 行业的开源、开放的开发框架，基于�
 
 ![install location](.\img\customize-install-location.png)
 
-最后点击“install”安装Python 3.8.10。
+最后点击“install”安装Python 3.14.2。
 
 ![python-end](.\img\python-end.png)
 
